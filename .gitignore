@@ -1,0 +1,41 @@
+# Data (too large for git)
+data/
+*.zip
+*.tar.gz
+
+# Python environment
+hpenv/
+venv/
+env/
+.env
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Model checkpoints (can be large)
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Logs & results that are regenerated
+runs/
+wandb/
+lightning_logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Keep results folder structure
+!results/.gitkeep
+!results/hauptprojekt/
