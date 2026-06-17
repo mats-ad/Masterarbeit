@@ -275,3 +275,111 @@ Ein zweiter Datensatz zeigt dass das Framework nicht auf Food11 beschränkt ist.
 Kandidaten: HAM10000 (Dermatologie), MSTAR (SAR), RESISC45 (Remote Sensing).
 
 ---
+
+### Gliederung
+
+1. Einleitung
+   1.1 Motivation
+   1.2 Forschungsfragen
+   1.3 Beitrag der Arbeit
+   1.4 Aufbau der Arbeit
+2. Grundlagen
+   2.1 Vision Transformers
+   2.2 Neural Architecture Search
+   2.3 Zero-Cost Proxies
+   2.4 Multi-Objective Optimierung
+   2.5 Efficient CNNs als Vergleichsklasse
+3. Stand der Forschung
+   3.1 ViTs auf kleinen Datensätzen
+   3.2 Neural Architecture Search für Transformer Architekturen
+   3.3 SOTA auf dem gewählten Datensatz
+   3.4 Abgrenzung dieser Arbeit
+4. Methodik
+   4.1 Evaluations Framework
+   4.1.1 Anforderungsanalyse
+   4.1.2 Vergleich: NAS vs. CNN-Baselines
+   4.1.3 Bewertung der Suchkostenrechtfertigung
+   4.1.4 Generalisierbarkeit der gefundenen Architekturen
+   4.2 Systemübersicht der NAS-Pipeline
+   4.3 Suchraum Design
+   4.4 Fitnessfunktion und Pareto-Dominanz
+   4.5 Zero-Cost Proxy Integration
+   4.6 Evolutionärer Algorithmus
+   4.6.1 Mutationen und Crossover-Operatoren
+   4.7 Weight Inheritance und Kompatibilitätsprüfung
+   4.8 Evaluationsprotokoll
+5. Evaluation und Ergebnisse
+   5.1 Datensatz und Preprocessing
+   5.2 Experimentelles Setup
+   5.3 Baseline Ergebnisse
+   5.4 NAS-Ergebnisse: Pareto Front
+   5.5 Schwellenwertanalyse
+   5.5.1 Accuracy Verläufe über Datensatzgröße
+   5.5.2 Kreuzungspunkt ViT und CNN
+   5.5.3 Statistische Absicherung
+   5.6 Ablation Studis
+   5.7 Suchkostenanalyse
+6. Diskussion
+   6.1 Beantwortung der Forschungsfragen
+   6.1.1 Schwellenwert und CNN-Vergleich
+   6.1.2 Pareto Effizienz gegenüber SOTA
+   6.1.3 Rechtfertigung des NAS-Aufwands
+   6.2 Analyse der gefundenen Architekturen
+   6.3 Praktische Empfehlungen
+   6.4 Einschränkungen und Limitierungen
+7. Fazit
+   7.1 Zusammenfassung der Beiträge
+   7.2 Zukünftige Arbeiten
+
+### Zeitplan
+
+#### Monat 1 Foundation & Baselines
+
+| Woche   | Aufgaben                                                                                                                                        |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Woche 1 | Reproduzierbare Trainingspipeline                                                                                                               |
+| Woche 2 | Datensatzpipline vollständig<br>Food11 Pipeline<br>Datensplitting<br>Subsampling-Framework für Datenskalierung<br>Evaluation Metrics definieren |
+| Woche 3 | CNN-Baseline Tabelle vorhanden<br>MobileNetV3<br>ResNet18<br>EfficientNet-B0                                                                    |
+| Woche 4 | ViT-Small Fine-Tuning<br>Erste Vergleichsergebnisse<br>Einleitung schreiben<br>Kapitel 1 fertig                                                 |
+
+#### Monat 2 NAS-Framework aufbauen
+
+| Woche   | Aufgaben                                                                                                                                  |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Woche 5 | Suchraum definieren<br>Mutation Operatoren<br>Architektur-Encoding<br>Architekturrepräsentation stabil                                    |
+| Woche 6 | Weight Inheritance<br>Kompatibilitätsprüfung<br>Größtes Projektrisiko<br>Architekturwechsel ohne Abstürze                                 |
+| Woche 7 | Multi-Objective Optimierung<br>NSGA-II<br>Elite Selektion<br>Evolutionärer Zyklus lauffähig                                               |
+| Woche 8 | Crossover<br>Augmentierung als Suchparameter<br>Smoke Tests<br>Parallel: Kapitel 2 Grundlagen<br>Meilenstein: Vollständiges NAS Framework |
+
+#### Monat 3 Zero-Cost Proxies und NAS-Runs
+
+| Woche    | Aufgaben                                                 |
+| -------- | -------------------------------------------------------- |
+| Woche 9  | SynFlow<br>NASWOT<br>GradNorm<br>Proxies Implementiert   |
+| Woche 10 | Proxy-Korrelation analysieren<br>Proxy-Auswahl begründet |
+| Woche 11 | NAS Runs mit Pareto Front<br>Suchraum validieren         |
+| Woche 12 | NAS Runs und Kapitel 3 fertig                            |
+
+#### Monat 4 Experimente und Auswertung
+
+| Woche    | Aufgaben                                                                                |
+| -------- | --------------------------------------------------------------------------------------- |
+| Woche 13 | NAS-Runs mit mehreren Seeds                                                             |
+| Woche 14 | Datenskalierungsexperiment                                                              |
+| Woche 15 | Effizienzbewertung (Suchkosten, GPU-Stunden, Trainingszeit etc.)                        |
+| Woche 16 | Ablation Studies bsp. Ohne Zero-Proxies oder Weight Inheritance.<br>Kapitel 4 schreiben |
+
+#### Monat 5 Auswertung und Hauptschreiben
+
+| Woche    | Aufgaben                                       |
+| -------- | ---------------------------------------------- |
+| Woche 17 | Pareto-Fronten<br>Visualisierungen<br>Tabellen |
+| Woche 18 | Kapitel Ergebnisse                             |
+| Woche 19 | Diskussion / Forschungsfragen beantworten      |
+| Woche 20 | Fazit<br>Abstract<br>Vollständiger Erstentwurf |
+
+#### Monat 6 Finalisierung und Abgabe
+
+| Woche | Aufgaben                |
+| ----- | ----------------------- |
+|       | Puffer und Nacharbeiten |
