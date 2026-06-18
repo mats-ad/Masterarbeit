@@ -53,31 +53,11 @@ diese Probleme systematisch und liefert damit erstmals valide, vergleichbare Erg
 
 ## Die 3 zentralen Forschungsfragen
 
-### F1 — Ab welcher Datensatzgröße verliert ein NAS-optimierter Vision Transformer seinen Genauigkeitsvorteil gegenüber CNN-Baselines?
+### F1 — Ab welcher Datensatzgröße verliert ein NAS-optimierter Vision Transformer seinen Genauigkeitvorteil gegenüber CNN-Baselines bei vergleichbarer Parameteranzahl?
 
-> Erreicht ein NAS-optimierter Vision Transformer auf kleinen domänenspezifischen Datensätzen
-> eine höhere Accuracy als handdesignte CNN-Baselines (MobileNet, EfficientNet, ResNet)
-> bei vergleichbarer Parameteranzahl?
+### F2 — Unter welchen Bedingungen rechtfertigt der durch Neural Architecture Search erzielte Genauigkeitsgewinn den damit verbundenen Rechenaufwand gegenüber dem Fine-Tuning CNN-Baselines?
 
-MobileNet, EfficientNet und ResNet sind die Standard-Wahl für kleine Datensätze.
-Diese Frage beantwortet ob der Einsatz eines ViT mit NAS überhaupt sinnvoll ist.
-
-### F2 — Wie nah kommt NAS an den SOTA, mit weniger Parametern?
-
-> Kann das NAS-Framework eine ViT-Konfiguration finden, die bei weniger Parametern als
-> der bisherige State of the Art eine wettbewerbsfähige oder bessere Accuracy erreicht?
-
-Es existiert ein SOTA-Modell auf dem gewählten Datensatz (Referenz: Doktoranden-Paper).
-Ziel ist nicht diesen zu übertreffen, sondern einen Punkt auf der Pareto-Front zu finden
-der effizienter ist — also weniger Parameter bei ähnlicher Genauigkeit.
-
-### F3 — Wann lohnt sich NAS, und wann nicht?
-
-> Wie groß ist der Accuracy-Gewinn durch NAS im Vergleich zum einfachen Fine-Tuning,
-> und wie viel Rechenaufwand (GPU-Stunden) ist dafür notwendig?
-
-Das ist die "Mehrwert vs. Aufwand"-Frage des Professors. NAS kostet Rechenzeit.
-Diese Arbeit quantifiziert erstmals systematisch ob und wann dieser Aufwand gerechtfertigt ist.
+### F3 — Inwiefern gelingt es einem NAS-optimierten Vision Transformer, bei reduzierter Parameteranzahl eine mit dem bisherigen State of the Art vergleichbare Klassifikationsgenauigkeit zu erzielen?
 
 ---
 
