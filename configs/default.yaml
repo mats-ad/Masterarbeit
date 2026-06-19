@@ -1,0 +1,22 @@
+seed: 42
+
+dataset:
+  name: food11
+  root: ./data/food11
+  image_size: 224
+  batch_size: 32
+  num_workers: 4
+  subsample_frac: 1.0     # 1.0 = full dataset | 0.5 = 50% for F1 scaling experiments
+
+model:
+  depth: 12
+  num_heads: 6
+  use_spt: 0
+  use_lsa: 0
+  finetune_mode: last2
+
+training:
+  epochs: 30
+  lr: 3.0e-4
+  weight_decay: 1.0e-4
+  patience: 5
