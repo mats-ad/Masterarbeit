@@ -48,9 +48,10 @@ def evaluate(model, loader, device):
     return total_loss / n, total_acc / n
 
 def run_training(model, train_loader, val_loader, device, epochs=30, lr=3e-4, weight_decay=1e-4, patience=None):
-    params = [p for p in model.parameters() if p.requires_grad]
+    params = [p for p in model.parameters() if p.requires_grad] # Nur die Parameter werden ausgewählt die trainiert werden sollen
     optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=weight_decay)
 
+    # Mixed Precision für schnellere Trainingszeit und weniger Speicher verbrauch
     scaler = torch.amp.GradScaler(enabled=(device.type == "cuda"))
 
     best_val_acc = 0.0
