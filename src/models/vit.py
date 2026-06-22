@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import timm
 import torch.nn.functional as F
-from utils.seed import get_device
+from src.utils.seed import get_device
 
 class SPTPatchEmbed(nn.Module):
     """
