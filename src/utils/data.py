@@ -34,6 +34,7 @@ def make_food11_loaders(
     seed: int = 42,
     subsample_frac: float = 1.0,
 ):
+    root = os.path.abspath(root)
     train_ds = datasets.ImageFolder(
         os.path.join(root, "training"),
         transform=get_transforms(image_size, "train"),
