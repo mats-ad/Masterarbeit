@@ -1,0 +1,5 @@
+model,params_M,trainable_M,best_val_acc
+vit_model,21.67,3.55,0.9417
+resnet18,11.18,11.18,0.8915
+efficientnet_b0,4.02,4.02,0.895
+mobilenetv3_large,4.22,4.22,0.8965
