@@ -187,9 +187,9 @@ Alle Baselines auf demselben Datensatz, identische Trainings-Pipeline:
 
 | Modell                | Typ | Params   | Trainingsart           |
 | --------------------- | --- | -------- | ---------------------- |
-| MobileNetV3-Large     | CNN | 5.4M     | Fine-Tuning pretrained |
-| EfficientNet-B1       | CNN | 7.8M     | Fine-Tuning pretrained |
-| ResNet-18             | CNN | 11.7M    | Fine-Tuning pretrained |
+| MobileNetV3-Large     | CNN | 4.2M     | Fine-Tuning pretrained |
+| EfficientNet-B1       | CNN | 5.3M     | Fine-Tuning pretrained |
+| ResNet-18             | CNN | 11.2M    | Fine-Tuning pretrained |
 | ViT-Small vanilla     | ViT | 22M      | Fine-Tuning pretrained |
 | **NAS-ViT (Beitrag)** | ViT | variabel | NAS-gefunden           |
 
