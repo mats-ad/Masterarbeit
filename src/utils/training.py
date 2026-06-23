@@ -47,7 +47,7 @@ def evaluate(model, loader, device):
 
     return total_loss / n, total_acc / n
 
-def run_training(model, train_loader, val_loader, device, epochs=30, lr=3e-4, weight_decay=1e-4, patience=None):
+def run_training(model, train_loader, val_loader, device, epochs=30, lr=3e-4, weight_decay=1e-4, patience=None, use_scheduler=True):
     params = [p for p in model.parameters() if p.requires_grad] # Nur die Parameter werden ausgewählt die trainiert werden sollen
     optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=weight_decay)
 
@@ -59,9 +59,16 @@ def run_training(model, train_loader, val_loader, device, epochs=30, lr=3e-4, we
     no_improve = 0
     history = []
     
+    # Lernrate startet hoch und fällt über die Epochen ab, wodurch das Modell am Anfang große Schritte mach und am Ende nur noch verfeinert
+    # Standard für ViTs ist Cosine Annealing, die LR fällt wie eine halbe Kosinuskurve
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-6) if use_scheduler else None
+    
     for epoch in range(epochs):
         train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, scaler, device)
         val_loss, val_acc = evaluate(model, val_loader, device)
+        
+        if scheduler:
+            scheduler.step()
         
         history.append({
             "epoch": epoch,
