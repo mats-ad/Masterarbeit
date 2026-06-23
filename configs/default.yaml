@@ -1,12 +1,11 @@
 seed: 42
 
 dataset:
-  name: food11
   root: ./data/food11
   image_size: 224
   batch_size: 32
   num_workers: 4
-  subsample_frac: 1.0     # 1.0 = full dataset | 0.5 = 50% for F1 scaling experiments
+  subsample_frac: 1.0 # 1.0 = full dataset | 0.5 = 50% for F1 scaling experiments
 
 model:
   depth: 12
