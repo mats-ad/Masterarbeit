@@ -1,5 +1,4 @@
 import time
-import torch
 from src.models.vit import build_vit_from_cfg
 from src.utils.training import run_training
 from src.utils.metrics import count_params
@@ -29,10 +28,12 @@ def evaluate_cfg(cfg, num_classes, train_loader, val_loader, device, proxy_epoch
     t0 = time.time()
     
     best_val, _ = run_training(
-        model, train_loader, val_loader, device, 
+        model, train_loader, val_loader, device,
         epochs=proxy_epochs,
         lr=cfg["lr"],
-        weight_decay=cfg["weight_decay"]
+        weight_decay=cfg["weight_decay"],
+        mixup_alpha=cfg["mixup_alpha"],
+        cutmix_prob=cfg["cutmix_prob"],
     )
     
     return {
