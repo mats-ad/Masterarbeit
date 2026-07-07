@@ -7,6 +7,15 @@ from src.nas.mutation import mutate_config
 from src.nas.crossover import crossover_configs
 from src.nas.pareto import non_dominated_sort, crowding_distance
 from src.nas.evaluate import evaluate_cfg
+from src.proxies.evaluate_proxy import evaluate_proxies
+
+def _rank(scores, descending=True):
+    """Gibt Rang-Liste zurück: 0 = bester Kandidat"""
+    order = sorted(range(len(scores)), key=lambda i: scores[i], reverse=descending)
+    ranks = [0] * len(scores)
+    for rank, idx in enumerate(order):
+        ranks[idx] = rank
+    return ranks
 
 def run_evolution(
     num_classes, 
@@ -18,8 +27,11 @@ def run_evolution(
     proxy_epochs=10, 
     p_mut=0.3, 
     seed=42, 
-    log_path="results/nas_run.csv"):
+    log_path="results/nas_run.csv",
+    use_proxies=False, proxy_keep_frac=0.5):
     random.seed(seed)
+    if use_proxies:
+        proxy_batch, proxy_labels = next(iter(train_loader))
     population = [sample_config() for _ in range(pop_size)]
     all_results = []
     
@@ -31,9 +43,26 @@ def run_evolution(
         
         for gen in range(generations):
             print(f"\n=== Generation {gen} | {len(population)} Architekturen ===")
+            if use_proxies:
+                proxy_scores = [
+                    evaluate_proxies(cfg, num_classes, proxy_batch, proxy_labels, device)
+                    for cfg in population
+                ]
+                syn_ranks  = _rank([s["synflow"]  for s in proxy_scores])
+                nas_ranks  = _rank([s["naswot"]   for s in proxy_scores])
+                grad_ranks = _rank([s["gradnorm"] for s in proxy_scores])
+                combined   = [syn_ranks[i] + nas_ranks[i] + grad_ranks[i]
+                              for i in range(len(population))]
+                keep_n     = max(1, int(len(population) * proxy_keep_frac))
+                top_idx    = sorted(range(len(population)), key=lambda i: combined[i])[:keep_n]
+                population_to_eval = [population[i] for i in top_idx]
+                print(f"  Proxies: {len(population_to_eval)}/{len(population)} Kandidaten behalten")
+            else:
+                population_to_eval = population
+                
             gen_results = []
             
-            for cfg in population:
+            for cfg in population_to_eval:
                 result = evaluate_cfg(
                     cfg, num_classes, train_loader, val_loader, device,
                     proxy_epochs=proxy_epochs,
