@@ -3,6 +3,8 @@ import torch.nn as nn
 import timm
 import torch.nn.functional as F
 from src.utils.seed import get_device
+import logging
+logging.getLogger("timm").setLevel(logging.ERROR)
 
 class SPTPatchEmbed(nn.Module):
     """
