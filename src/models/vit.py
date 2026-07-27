@@ -161,23 +161,31 @@ class LSA_Attention(nn.Module):
         return out
         
 # Enable SPT when it is chosen in the search space by the nas
-def enable_spt(model, img_size=224, patch_size=16, vanilla=False):
-    """
-    Replace model.patch_embed with SPTPatchEmbed while keeping everything else identical.
-    Assumes ViT-Small (embed_dim=384).
-    """
+def enable_spt(model, img_size=224, patch_size=16, vanilla=False, warm_start=False):
     embed_dim = getattr(model, "embed_dim", 384)
-    in_chans = 3
-    
+
+    # Gewichte des originalen patch_embed sichern (vor dem Ersetzen)
+    original_weight = model.patch_embed.proj.weight.data.clone()
+    original_bias = (model.patch_embed.proj.bias.data.clone()
+                     if model.patch_embed.proj.bias is not None else None)
+
     model.patch_embed = SPTPatchEmbed(
         img_size=img_size,
         patch_size=patch_size,
-        in_chans=in_chans,
+        in_chans=3,
         embed_dim=embed_dim,
         vanilla=vanilla,
         use_ln=True
     )
-    
+
+    if warm_start:
+        # 3-Kanal-Gewichte 5× wiederholen, durch 5 skalieren
+        # → erwarteter Output identisch mit Original wenn alle 5 Inputs gleich
+        with torch.no_grad():
+            model.patch_embed.proj.weight.data = original_weight.repeat(1, 5, 1, 1) / 5.0
+            if original_bias is not None and model.patch_embed.proj.bias is not None:
+                model.patch_embed.proj.bias.data = original_bias
+
     return model
 
 # Enable LSA when it is chosen in the search space by the nas
@@ -186,7 +194,7 @@ def enable_lsa(model):
         blk.attn = LSA_Attention(blk.attn)
     return model
 
-def build_vit_from_cfg(num_classes, cfg):
+def build_vit_from_cfg(num_classes, cfg, spt_warm_start=False):
     model = timm.create_model(
         "vit_small_patch16_224",
         pretrained=True,
@@ -196,7 +204,7 @@ def build_vit_from_cfg(num_classes, cfg):
     )
 
     if cfg["use_spt"] == 1:
-        model = enable_spt(model, img_size=224, patch_size=16, vanilla=False)
+        model = enable_spt(model, img_size=224, patch_size=16, vanilla=False, warm_start=spt_warm_start)
         
     if cfg["use_lsa"] == 1: model = enable_lsa(model)
     
