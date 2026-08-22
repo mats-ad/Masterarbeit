@@ -19,9 +19,9 @@ from src.models.cnn_baseline import build_cnn_baseline
 FRACS = [0.1, 0.2, 0.3, 0.5, 0.75, 1.0]
 
 VIT_CFG = {
-    "depth": 12, "num_heads": 6, "use_spt": 0, "use_lsa": 0,
-    "finetune_mode": "last2", "lr": 3e-4, "weight_decay": 1e-4,
-    "mixup_alpha": 0.0, "cutmix_prob": 0.0,
+    "depth": 12, "num_heads": 8, "use_spt": 0, "use_lsa": 0,
+    "finetune_mode": "full", "lr": 1e-4, "weight_decay": 5e-4,
+    "mixup_alpha": 0.0, "cutmix_prob": 0.5,
 }
 
 CNN_MODELS = [
@@ -41,6 +41,8 @@ def parse_args():
     p.add_argument("--models",      nargs="+",
                    default=["vit"] + [name for name, _ in CNN_MODELS],
                    help="Welche Modelle trainieren (vit, resnet18, ...)")
+    p.add_argument("--out",         default=None,
+                   help="Output CSV filename (default: f1_scaling.csv)")
     return p.parse_args()
 
 
@@ -57,7 +59,8 @@ def main():
     set_seed(args.seed)
     device = get_device()
     os.makedirs(args.results_dir, exist_ok=True)
-    log_path = os.path.join(args.results_dir, "f1_scaling.csv")
+    out_name = args.out if args.out else "f1_scaling.csv"
+    log_path = os.path.join(args.results_dir, out_name)
 
     print(f"Device: {device}")
     print(f"Fractions: {FRACS} | Epochs: {args.epochs}\n")
@@ -84,9 +87,16 @@ def main():
             if "vit" in args.models:
                 print(f"  Training ViT...")
                 model = build_vit_from_cfg(num_classes, VIT_CFG)
-                best_val = train_model(model, train_loader, val_loader, device,
-                                       lr=VIT_CFG["lr"], epochs=args.epochs)
-                row = {"model": "vit_small", "subsample_frac": frac,
+                best_val, _ = run_training(
+                    model, train_loader, val_loader, device,
+                    epochs=args.epochs,
+                    lr=VIT_CFG["lr"],
+                    weight_decay=VIT_CFG["weight_decay"],
+                    patience=10,
+                    mixup_alpha=VIT_CFG["mixup_alpha"],
+                    cutmix_prob=VIT_CFG["cutmix_prob"],
+                )
+                row = {"model": "vit_nas", "subsample_frac": frac,
                        "train_size": train_size, "params_M": count_params(model)/1e6,
                        "best_val_acc": best_val, "epochs": args.epochs}
                 writer.writerow(row)
