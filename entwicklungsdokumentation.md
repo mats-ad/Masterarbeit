@@ -42,6 +42,276 @@ Stand: 2026-07-17.
 
 ---
 
+### 0. Evaluations-Framework — Gliederung 4.1, 4.1.1, 4.1.2, 4.1.3, 4.1.4
+
+#### 4.1 Evaluations-Framework: Überblick und Motivation
+
+Das zentrale methodische Problem dieser Arbeit ist nicht die Architektursuche selbst,
+sondern die Frage: **Wann und warum lohnt sich NAS gegenüber einfachem Fine-Tuning
+einer CNN-Baseline?** Diese Frage ist nur dann wissenschaftlich beantwortbar, wenn
+der Vergleich zwischen NAS-gefundenen Architekturen und CNN-Baselines nach einheitlichen,
+nachvollziehbaren Kriterien durchgeführt wird.
+
+Ein naiver Vergleich ("NAS-ViT erreicht X%, CNN erreicht Y%") ist aus mehreren Gründen
+problematisch:
+
+1. **Unterschiedliche Parameteranzahl:** Ein größeres Modell hat typischerweise höhere
+   Accuracy, unabhängig von der Suchstrategie. Ein fairer Vergleich muss die
+   Modellgröße als Dimension explizit einbeziehen.
+2. **Unterschiedlicher Trainingsaufwand:** NAS evaluiert viele Architekturen, eine
+   CNN-Baseline wird einmal trainiert. Der Mehraufwand muss dem Mehrwert gegenübergestellt
+   werden.
+3. **Mögliches Overfitting auf den Validierungssplit:** Wenn der NAS-Algorithmus
+   val_acc als Fitness-Signal nutzt, besteht das Risiko, dass selektierte Architekturen
+   spezifisch für diesen Split optimiert sind, nicht generell besser.
+
+Das Evaluations-Framework adressiert diese Probleme durch vier Komponenten:
+Anforderungsanalyse (4.1.1), Baseline-Vergleichsmethodik (4.1.2),
+Suchkostenanalyse (4.1.3) und Generalisierbarkeit (4.1.4).
+
+---
+
+#### 4.1.1 Anforderungsanalyse
+
+Für einen validen Vergleich zwischen NAS-gefundenen Architekturen und CNN-Baselines
+müssen folgende Anforderungen erfüllt sein:
+
+**Anforderung 1 — Einheitliche Trainingspipeline:**
+Alle Modelle werden mit identischer Trainings-Pipeline trainiert: gleicher Optimizer
+(AdamW), gleicher LR-Scheduler (CosineAnnealingLR), gleiche Standard-Augmentierungen
+(RandomHorizontalFlip, RandomResizedCrop), gleiche Batch-Größe (32) und gleiche
+Evaluation-Metrik (Top-1-Accuracy). Unterschiede in den Ergebnissen sind damit
+ausschließlich auf Architektur und Konfiguration zurückzuführen, nicht auf
+unterschiedliche Trainingsregimes.
+
+**Anforderung 2 — Vorgegebene und unveränderliche Datensatz-Splits:**
+Food11 stellt drei feste Splits bereit (training / validation / evaluation). Diese
+werden nicht modifiziert. Training erfolgt ausschließlich auf dem training-Split,
+Modellselektion anhand des validation-Splits. Das evaluation-Split fungiert als
+echtes Test-Set und wird erst nach Abschluss der Suche und Modellselektion einmalig
+genutzt.
+
+**Anforderung 3 — Parameter-bewusster Vergleich:**
+Accuracy-Vergleiche zwischen Modellen unterschiedlicher Größe sind nur in Verbindung
+mit der Parameteranzahl aussagekräftig. Die Pareto-Front (Accuracy vs. Parameter)
+dient als Hauptvergleichsinstrument: Sie bildet den vollständigen Tradeoff-Raum ab,
+statt eine einzelne "beste" Architektur herauszustellen. CNN-Baselines werden als
+Referenzpunkte in denselben Accuracy-Parameter-Raum eingetragen.
+
+**Anforderung 4 — Trennung von Architektur- und Trainingsqualität:**
+Der Suchraum enthält sowohl Architekturparameter (depth, num_heads, use_spt, use_lsa)
+als auch Trainingsparameter (finetune_mode, lr, weight_decay, mixup_alpha, cutmix_prob).
+Die Analyse unterscheidet daher zwischen Architektur-Effizienz (Accuracy pro Parameter)
+und Training-Effizienz (Accuracy pro Trainingsaufwand), um zu verstehen welche
+Kategorie den größten Einfluss auf das Ergebnis hat.
+
+**Anforderung 5 — Reproduzierbarkeit:**
+Alle Experimente verwenden einen fixierten Seed (42). Ergebnisse werden nach jeder
+Architektur-Evaluierung zeilenweise in CSV-Dateien geschrieben und geflusht, um
+Datenverlust bei Serverabsturz zu verhindern. Hyperparameter, Docker-Befehle und
+Laufzeiten sind vollständig dokumentiert.
+
+---
+
+#### 4.1.2 Vergleich: NAS vs. CNN-Baselines
+
+Der Vergleich zwischen NAS-gefundenen Architekturen und CNN-Baselines erfolgt auf
+drei strukturellen Ebenen:
+
+**Ebene 1 — Absoluter Accuracy-Vergleich beim vollen Datensatz:**
+Die beste durch NAS gefundene Architektur wird nach vollständigem Training (50 Epochen)
+und finaler Test-Set-Evaluation direkt den drei CNN-Baselines gegenübergestellt.
+Diese Ebene beantwortet: Welches Modell ist bei maximalem Dateneinsatz am genauesten?
+
+**Ebene 2 — Pareto-Front-Vergleich:**
+Die vollständige NAS-Pareto-Front wird gegen die CNN-Baselines als Referenzpunkte
+verglichen. Dabei wird untersucht ob und in welchem Parameterbereich NAS-Architekturen
+die CNNs dominieren (d. h. höhere Accuracy bei gleicher oder geringerer Parameterzahl
+erreichen). Dieser Vergleich beantwortet: Ist NAS im Accuracy-Effizienz-Tradeoff
+besser als handdesignte CNNs?
+
+**Ebene 3 — Datensatz-Skalierungsvergleich:**
+Alle Modelle werden auf mehreren Datensatzgrößen (10 % bis 100 % des Trainingssets)
+evaluiert. Dieser Vergleich beantwortet F1: Gibt es eine Datenmenge unterhalb derer
+CNN-Baselines dem ViT überlegen sind, und wo liegt dieser Schwellenwert?
+
+---
+
+#### 4.1.3 Bewertung der Suchkostenrechtfertigung
+
+Die Suchkostenrechtfertigung stellt den Mehraufwand von NAS dem erzielbaren
+Genauigkeitsgewinn gegenüber. Die Analyse erfolgt in drei Schritten:
+
+**Schritt 1 — Messung der absoluten Suchkosten:**
+Für jeden Ansatz werden gemessen: Anzahl der trainierten Architekturen, Gesamtlaufzeit
+auf der genutzten Hardware (GPU-Stunden) und die beste gefundene Val-Accuracy.
+Verglichen werden: einfaches CNN-Fine-Tuning, einfaches ViT-Fine-Tuning ohne NAS,
+NAS ohne Zero-Cost-Proxy-Filter und NAS mit Zero-Cost-Proxy-Filter.
+
+**Schritt 2 — Berechnung der Proxy-Effizienz:**
+Die Effizienz des Proxy-Filters wird als Verhältnis von eingesparter Rechenzeit zu
+erreichter Accuracy-Qualität quantifiziert. Konkret: Wie viel Prozent der
+Evaluierungen werden eingespart, und wie verändert sich die beste gefundene
+Architektur-Qualität?
+
+**Schritt 3 — Schwellenwertbetrachtung:**
+Der Accuracy-Gewinn von NAS gegenüber einfachem Fine-Tuning wird dem Zeitaufwand
+gegenübergestellt. Die Frage lautet: Ab welchem Accuracy-Gewinn amortisiert sich
+der NAS-Mehraufwand für einen typischen Anwendungsfall? Diese Betrachtung ist
+qualitativ und anwendungsfallabhängig — sie liefert keine universelle Zahl, sondern
+eine begründete Einordnung.
+
+---
+
+#### 4.1.4 Retrain-Analyse
+
+Der NAS-Lauf bewertet Architekturen nach 12 Proxy-Epochen. Damit stellt sich die
+Frage, ob die so ermittelte Rangliste unter vollständigem Training stabil bleibt —
+oder ob kurzes Proxy-Training bestimmte Architektur-Typen systematisch über- oder
+unterschätzt.
+
+Um das zu überprüfen, wurden die drei besten und drei schlechtesten Architekturen
+aus dem NAS-Lauf (nach Proxy-Val-Accuracy) für 50 Epochen vollständig trainiert
+und anschließend auf dem Food11 evaluation-Split bewertet. Die Auswahl dieser sechs
+Architekturen als Stichprobe deckt beide Extreme der Qualitätsverteilung ab. Bleibt
+die Rangliste nach 50 Epochen konsistent mit der nach 12 Epochen, ist die
+Proxy-Selektion valide. Kehrt sie sich um oder ändern sich die Abstände erheblich,
+deutet das auf eine systematische Verzerrung durch das kurze Proxy-Training hin.
+
+Die finale Bewertung erfolgt ausschließlich auf dem Food11 evaluation-Split, der
+während der gesamten Suche und Modellselektion nicht verwendet wurde.
+
+---
+
+### 0b. Systemübersicht der NAS-Pipeline — Gliederung 4.2
+
+#### 4.2 Systemübersicht der NAS-Pipeline
+
+Die NAS-Pipeline realisiert eine evolutionäre Suche über einen diskret-gemischten
+Hyperparameter-Suchraum. Sie besteht aus sieben Phasen, die in jeder Generation
+sequenziell durchlaufen werden, mit einer abschließenden Retrain-Phase nach der
+letzten Generation. Abbildung 4.1 zeigt den Gesamtablauf; die folgenden Abschnitte
+beschreiben jede Phase im Detail.
+
+---
+
+#### 4.2.1 Überblick über die sieben Phasen
+
+**Phase 1 — Suchraum-Definition (→ Abschnitt 4.3):**
+Der Suchraum `SEARCH_SPACE` definiert neun diskrete Parameter in vier Kategorien
+(Architektur, Fine-Tuning-Strategie, Augmentierung, Optimierung). Jede gültige
+Kombination dieser Parameter ist ein sogenanntes _Genom_ — ein Dictionaries mit
+neun Schlüssel-Wert-Paaren. `validate_config()` prüft harte Nebenbedingungen
+(z. B. `num_heads` muss `embed_dim=384` teilen).
+
+**Phase 2 — Population-Initialisierung:**
+Zu Beginn des ersten Durchlaufs werden `pop_size=15` Genome zufällig aus dem
+Suchraum gesampelt. Jedes Genom ist gleichwahrscheinlich — es gibt keine
+Initialisierungsbiases, die bestimmte Regionen des Suchraums bevorzugen.
+Ab Generation 2 besteht die initiale Population aus den Überlebenden der
+Pareto-Selektion plus neuen Offspring-Kandidaten aus Crossover und Mutation.
+
+**Phase 3 — Zero-Cost Proxy Filter (→ Abschnitt 4.5):**
+Vor dem Training wird jede Architektur mit drei trainingsfreien Proxies bewertet:
+SynFlow (Gradientfluss-Analyse), NASWOT (Kernel-Matrix-Rang bei Forward-Pass) und
+GradNorm (L2-Norm der Gradienten nach einem Single-Batch). Aus den drei Rang-Scores
+wird ein gewichteter Ensemble-Score berechnet. Die `top_k=8` Architekturen mit den
+höchsten Ensemble-Scores werden in Phase 4 trainiert; die restlichen `15 - 8 = 7`
+werden verworfen. Dieser Schritt reduziert den Trainingsaufwand um ~47 % pro
+Generation.
+
+**Phase 4 — Proxy-Training und Fitness-Evaluation (→ Abschnitte 4.8, 4.4):**
+Die verbleibenden 8 Architekturen werden je 12 Epochen auf dem Food11 training-Split
+trainiert. Die Fitness wird durch zwei Metriken gemessen: `val_acc` (Accuracy auf
+dem validation-Split nach Epoche 12) und `params` (Anzahl trainierbarer Parameter).
+Diese zwei Metriken definieren den zweidimensionalen Objektraum, in dem die
+Pareto-Dominanz berechnet wird. Training erfolgt mit AMP (Automatic Mixed Precision)
+und CosineAnnealingLR; Augmentierungsparameter (`mixup_alpha`, `cutmix_prob`) sind
+Teil des Genoms und werden per-Architektur gesetzt.
+
+**Phase 5 — Multi-Objective Pareto-Selektion (→ Abschnitt 4.4):**
+Alle `pop_size` Individuen (Überlebende vorheriger Generationen plus neu evaluierte
+Offspring) werden gemeinsam nach Pareto-Dominanz sortiert. Ein Individuum dominiert
+ein anderes, wenn es in mindestens einem Ziel besser ist und in keinem schlechter:
+
+```
+a dominiert b  ⟺  val_acc(a) ≥ val_acc(b)  ∧  params(a) ≤ params(b)
+                   ∧  (val_acc(a) > val_acc(b)  ∨  params(a) < params(b))
+```
+
+Die nicht-dominierte Front (Rank 1) bildet die aktuelle Pareto-Front. Bei
+Platzmangel innerhalb eines Ranks wird über Crowding Distance entschieden, um
+die Diversität der Population zu erhalten. Es werden die besten `pop_size`
+Individuen in die nächste Generation übernommen.
+
+**Phase 6 — Crossover und Mutation (→ Abschnitt 4.6):**
+Aus den Überlebenden werden neue Offspring-Kandidaten erzeugt. Crossover kombiniert
+zwei Eltern durch zufälligen Parameter-Austausch (Uniform Crossover): jedes
+Gen des Kindes stammt mit Wahrscheinlichkeit 0.5 vom ersten, sonst vom zweiten
+Elternteil. Mutation ersetzt jeden Parameter eines Individuums unabhängig mit
+Wahrscheinlichkeit `mutation_rate=0.2` durch einen zufällig anderen Wert aus dem
+Suchraum. Duplicates (bereits evaluierte Genome) werden erkannt und verworfen.
+
+**Phase 7 — Weight Inheritance (→ Abschnitt 4.7):**
+Vor dem Training eines Offspring wird geprüft, ob ein kompatibles Elternmodell
+existiert. Kompatibel heißt: gleiche `depth`, gleiche `num_heads`, gleiche
+`use_spt`, gleiche `use_lsa`. Ist ein kompatibles Elternmodell vorhanden, werden
+dessen gespeicherte Gewichte als Startpunkt verwendet — nur die geänderten Trainings-
+parameter (lr, weight_decay, finetune_mode) wirken sich auf das Training aus, die
+Modellarchitektur ist bereits teilweise optimiert. Ist kein kompatibles Elternteil
+vorhanden, startet das Modell von den ImageNet-Gewichten.
+
+---
+
+#### 4.2.2 Ablauf über Generationen
+
+Die Phasen 2–7 werden für `num_generations=8` Generationen wiederholt. Nach
+jeder Generation wird der aktuelle Zustand — Pareto-Front, beste Val-Accuracy,
+durchschnittliche Params der Pareto-Front — in eine CSV-Datei geflushd. Nach
+der letzten Generation liegt eine finale Pareto-Front mit typischerweise 3–6
+nicht-dominierten Architekturen vor.
+
+Die besten Architekturen dieser Front (Top-1, Top-2, Top-3 nach `val_acc` sowie
+Bottom-1, Bottom-2, Bottom-3 als Negativkontrolle) werden in einer separaten
+Retrain-Phase 50 Epochen vollständig trainiert. Die finale Bewertung erfolgt
+auf dem Food11 evaluation-Split (Test-Set), der bis zu diesem Punkt nicht
+verwendet wurde.
+
+---
+
+#### 4.2.3 Design-Entscheidungen auf Pipeline-Ebene
+
+**Evolutionäre Suche statt Bayesian Optimization oder Differenzierbarer NAS:**
+Der Suchraum ist diskret und gemischt (Integer + Kategorisch). Bayesian Optimization
+mit kategorischen Variablen skaliert schlecht bei mehr als ~5 Parametern. DARTS
+(differenzierbarer NAS) setzt Differenzierbarkeit über den Suchraum voraus und
+ist auf kontinuierliche Architektur-Relaxierungen beschränkt. Evolutionäre
+Algorithmen (insbesondere NSGA-II) sind für diskrete Multi-Objective-Probleme
+gut etabliert und erfordern keine speziellen Annahmen über die Suchlandschaft.
+
+**Zwei-Phasen-Evaluierung (Proxy + Training) statt einmaliger Evaluierung:**
+Jede Architektur einmalig für die volle Anzahl Epochen zu trainieren wäre bei
+`pop_size × num_generations = 120` Evaluierungen nicht praktikabel. Zwei Phasen
+ermöglichen eine grobe Vorselektion durch trainingsfreie Proxies (< 1 Sekunde
+pro Architektur) und eine präzisere Bewertung durch 12-Epochen-Training nur
+für die vielversprechendsten Kandidaten.
+
+**Multi-Objective statt skalarer Fitness:**
+Eine skalare Fitness-Funktion `val_acc - λ·params` erfordert die manuelle Wahl
+von λ, die inhärent willkürlich ist und eine implizite Gewichtung von Accuracy
+gegenüber Modellgröße einbettet. Die Pareto-Formulierung macht diese Gewichtung
+explizit und verschiebt sie aus dem Algorithmus in die Modellselektion: Der
+Nutzer (oder die Anwendung) wählt den gewünschten Punkt auf der Pareto-Front.
+Dies ist der wesentliche methodische Unterschied zum Hauptprojekt.
+
+**Seed-Fixierung und stateless Reproduzierbarkeit:**
+Alle stochastischen Operationen (Population-Initialisierung, Crossover, Mutation,
+Training) verwenden einen fixierten Seed (42). Damit sind alle Experimente
+vollständig reproduzierbar — bei identischem Seed, identischen Daten und
+identischer Hardware wird exakt dieselbe Sequenz von Populationen erzeugt.
+
+---
+
 ### 1. Suchraum (`src/nas/search_space.py`) — Gliederung 4.3
 
 #### Was
@@ -125,8 +395,8 @@ Vorteil, Wechselwirkungen zwischen Architektur und Training zu erfassen — z. B
 eine flache Architektur (`depth=4`) von aggressiverer Augmentierung profitieren, während
 eine tiefe Architektur (`depth=12`, `finetune_mode=full`) mehr Regularisierung braucht.
 Der Nachteil ist ein größerer Suchraum, der bei gegebener Evaluierungskapazität
-schlechter abgedeckt wird. Mit pop=15 und gen=8 werden 120 der 6.480 Konfigurationen
-evaluiert (~1.9 %), was für einen evolutionären Algorithmus aber ausreichend ist.
+schlechter abgedeckt wird. Mit pop=15 und gen=8 werden 120 der 12.960 Konfigurationen
+evaluiert (~0.9 %), was für einen evolutionären Algorithmus aber ausreichend ist.
 
 ---
 
@@ -439,81 +709,115 @@ Proxy-Validierungsergebnissen abhängig zu machen (Zirkularität).
 
 ### 6. Evolutionärer Algorithmus (`src/nas/evolution.py`, `mutation.py`, `crossover.py`) — Gliederung 4.6
 
-#### Was
+#### 4.6 Evolutionärer Suchalgorithmus
 
-`run_evolution()` implementiert den vollständigen evolutionären Zyklus:
+Der Suchalgorithmus realisiert eine Generation-basierte Evolutionsstrategie nach
+dem NSGA-II-Prinzip (Non-dominated Sorting Genetic Algorithm II, Deb et al. 2002).
+Er operiert auf einer Population von Konfigurationen — im Folgenden _Individuen_
+genannt — und verbessert die Population iterativ durch Selektion, Crossover und
+Mutation.
+
+---
+
+#### 4.6.1 Populationsinitialisierung und Generationsschleife
+
+Zu Beginn wird eine Population der Größe `P = 15` durch gleichverteiltes Zufalls-
+sampling aus dem Suchraum erzeugt. Jedes Individuum ist eine vollständige
+Konfiguration mit neun Parametern. Die Population wird für `G = 8` Generationen
+weiterentwickelt.
+
+In jeder Generation durchläuft die Population vier Schritte: Proxy-Filterung,
+Proxy-Training und Fitness-Messung, Pareto-Selektion und Offspring-Erzeugung.
+Alle Schritte sind in Abschnitt 4.2.1 als Phasen 3–6 überblicksartig beschrieben;
+dieser Abschnitt beschreibt die algorithmischen Details.
+
+---
+
+#### 4.6.2 Selektion: NSGA-II mit Crowding Distance
+
+Nach der Fitness-Evaluierung werden alle bisher bewerteten Individuen gemeinsam
+nach Pareto-Dominanz sortiert. Zwei Ziele werden minimiert bzw. maximiert:
+Modellgröße (Parameteranzahl, minimieren) und Validierungsgenauigkeit (maximieren).
+Individuum _a_ dominiert Individuum _b_, wenn gilt:
 
 ```
-Initialisierung: population ← {sample_config()} × pop_size
-Für jede Generation g = 0, ..., generations-1:
-    Wenn use_proxies:
-        Für jede Konfiguration k in population:
-            proxy_scores[k] ← evaluate_proxies(k)
-        filtered ← top proxy_keep_frac nach Rangsumme
-    Sonst:
-        filtered ← population
-    Für jede Konfiguration k in filtered:
-        results[k] ← evaluate_cfg(k, proxy_epochs)  [Training + Eval]
-    fronts ← non_dominated_sort(results)
-    Pareto-Pool aufbauen nach NSGA-II (Front-Rang, dann Crowding Distance)
-    Neue Population:
-        Für i = 1 ... pop_size:
-            p1, p2 ← random.sample(pareto_pool, 2)
-            child ← crossover(p1, p2)
-            child ← mutate(child, p_mut)
-            child._parent_cfg ← p1
-            child._parent_state ← p1._state_dict
-        population ← neue Population
-Rückgabe: alle_results (alle je evaluierten Architekturen)
+val_acc(a) ≥ val_acc(b)  und  params(a) ≤ params(b)
+mit mindestens einer strikten Ungleichung
 ```
 
-Jede evaluierte Architektur wird unmittelbar nach Abschluss zeilenweise in die
-Ergebnis-CSV geschrieben und geflusht — Absturz-Schutz für lange Remote-Läufe.
+Alle nicht-dominierten Individuen bilden Rang-1 (die aktuelle Pareto-Front). Aus
+der verbleibenden Menge wird erneut die nicht-dominierte Front bestimmt (Rang 2),
+und so weiter. Die Population der nächsten Generation wird front-weise aufgefüllt:
+zuerst Rang 1, dann Rang 2 usw. Wenn ein Rang die Population überfüllen würde,
+wird innerhalb dieses Rangs nach _Crowding Distance_ sortiert: einem Maß für den
+mittleren Abstand eines Individuums zu seinen Nachbarn im Zielfunktionsraum.
+Individuen mit hoher Crowding Distance werden bevorzugt, da sie seltener besetzte
+Regionen der Pareto-Front repräsentieren und die Populationsdiversität sichern.
 
-**Mutation (`mutation.py`):** Für jeden Parameter in `SEARCH_SPACE` wird mit
-Wahrscheinlichkeit `p_mut = 0.3` ein anderer Wert als der aktuelle gezogen
-(explizit ausgeschlossen: `options = [c for c in choices if c != child[key]]`,
-damit Mutation immer eine echte Änderung bewirkt). Nach Mutation läuft `validate_config()`.
+---
 
-**Crossover (`crossover.py`):** Uniform Crossover: Jeder der neun Parameter wird
-unabhängig zufällig von Elternteil A oder B übernommen:
+#### 4.6.3 Crossover-Operator
 
-    child[key] = random.choice([cfg_a[key], cfg_b[key]])  für key in SEARCH_SPACE
+Für jedes neue Individuum werden zwei Eltern zufällig aus dem Pareto-Pool gezogen.
+Das Kind-Individuum entsteht durch _Uniform Crossover_: Jeder der neun Parameter
+wird unabhängig voneinander mit gleicher Wahrscheinlichkeit vom ersten oder zweiten
+Elternteil übernommen. Im Erwartungswert trägt jedes Elternteil 4,5 Parameter bei.
 
-Nur über `SEARCH_SPACE`-Keys (nicht über Ergebnis-Keys wie `val_acc` oder interne
-Keys wie `_state_dict`), seit dem Bugfix der Crossover-Implementierung.
+Uniform Crossover wurde gegenüber Ein-Punkt- oder Zwei-Punkt-Crossover gewählt,
+weil die neun Parameter keine inhärente Reihenfolge haben — es gibt keine biologische
+Analogie zu "benachbarten" Genen. Uniform Crossover behandelt alle Parameter
+gleichwertig und erlaubt beliebige Kombinationen beider Elternteile.
 
-#### Warum diese Hyperparameter
+Das Hauptprojekt verwendete kein Crossover — neue Kandidaten entstanden ausschließlich
+durch Mutation. Crossover ermöglicht es, Merkmale aus zwei unabhängig gut performenden
+Regionen des Suchraums zu kombinieren, was reine Mutation (lokale Nachbarschaftssuche)
+nicht leisten kann.
 
-**`pop_size = 15`:** Zu kleine Populationen (< 10) haben zu wenig Diversität und
-konvergieren frühzeitig zu lokalen Optima. Zu große Populationen (> 30) sind bei
-12 Proxy-Epochen pro Kandidat zu teuer. 15 ist ein etablierter Startwert für
-evolutionäre NAS-Experimente mit beschränktem Budget.
+---
 
-**`generations = 8`:** In der Literatur zu evolutionärem NAS mit vergleichbarem
-Budget (100–200 Evaluierungen) zeigen Experimente typischerweise Konvergenz nach
-5–10 Generationen. 8 Generationen × 15 Pop = 120 Evaluierungen total (ohne Proxy-Filter)
-bzw. ~60 (mit Filter) — ein vertretbarer Compute-Aufwand für eine Masterarbeit.
+#### 4.6.4 Mutations-Operator
 
-**`p_mut = 0.3`:** Bei 9 Parametern und p_mut=0.3 werden im Erwartungswert
-2.7 Parameter pro Mutation geändert. Dies ist aggressiv genug für echte Exploration,
-aber konservativ genug, dass viele Eltern-Gene erhalten bleiben.
+Nach dem Crossover wird jeder Parameter des Kindes unabhängig mit
+Mutations-Wahrscheinlichkeit `p_mut = 0.3` mutiert. Bei einer Mutation wird
+ein anderer Wert als der aktuelle aus den Optionen des jeweiligen Parameters
+gleichverteilt gezogen — der aktuelle Wert ist dabei explizit ausgeschlossen,
+sodass jede Mutation eine echte Veränderung bewirkt. Bei neun Parametern und
+`p_mut = 0.3` werden im Erwartungswert 2,7 Parameter pro Individuum verändert.
 
-**`proxy_keep_frac = 0.5`:** 50 % Filterrate bedeutet, dass die Hälfte der
-Kandidaten durch Proxy-Scoring ohne echtes Training aussortiert wird. Dies halbiert
-den Rechenaufwand. Der empirisch gemessene Wert (Spearman-ρ_NASWOT = 0.444) rechtfertigt
-eine moderate Filterung, aber keine aggressivere (z. B. 25 % behalten), da die
-Korrelation nicht hoch genug für so starke Filterung ist.
+Nach Crossover und Mutation wird die Gültigkeit des Genoms geprüft (z. B.
+`num_heads` muss `embed_dim=384` ganzzahlig teilen). Ungültige Konfigurationen
+werden verworfen und neu erzeugt. Bereits evaluierte Konfigurationen (Duplikate)
+werden ebenfalls verworfen.
 
-#### Designentscheidung: Crossover vs. Mutation only
+---
 
-Im Hauptprojekt gab es kein Crossover — neue Kandidaten entstanden ausschließlich
-durch Mutation bestehender Eltern. Das ist ein wesentlicher Unterschied: Crossover
-kann Gene aus zwei verschiedenen, gut performenden Eltern kombinieren, was
-Exploration-Exploitation deutlich besser balanciert als reine Mutation (die immer
-lokale Nachbarschaftssuche ist). Das Fehlen von Crossover wird in `masterthema.md`
-explizit als Lücke des Hauptprojekts genannt; die Implementierung hier ist eine der
-zentralen Korrekturen.
+#### 4.6.5 Begründung der Hyperparameter
+
+**Populationsgröße `P = 15`:** Zu kleine Populationen (< 10) haben zu wenig
+Diversität und konvergieren frühzeitig zu lokalen Optima. Zu große Populationen
+(> 30) sind bei 12 Proxy-Epochen pro Kandidat und beschränktem Compute-Budget
+nicht praktikabel. `P = 15` ist ein in der evolutionären NAS-Literatur etablierter
+Startwert für begrenzte Budgets (Liu et al., 2018; Real et al., 2019).
+
+**Generationsanzahl `G = 8`:** Mit `P = 15` und `G = 8` werden maximal 120
+Architekturen evaluiert (ohne Proxy-Filter; mit Filter ~60). Studien zu evolutionärem
+NAS mit vergleichbarem Budget berichten typischerweise Konvergenz nach 5–10
+Generationen. `G = 8` liegt in diesem Bereich und hält den Gesamtaufwand unter
+~12 GPU-Stunden.
+
+**Mutations-Wahrscheinlichkeit `p_mut = 0.3`:** Eine zu niedrige Rate (< 0.1)
+führt zu früher Konvergenz, weil Offspring-Individuen zu ähnlich zu den Eltern
+sind. Eine zu hohe Rate (> 0.5) negiert den Selektionsdruck, da zu viele Eltern-
+Gene verloren gehen. `p_mut = 0.3` ergibt bei neun Parametern im Erwartungswert
+2,7 Änderungen pro Mutation — aggressiv genug für echte Exploration, konservativ
+genug um nützliche Elternmerkmale zu erhalten.
+
+**Proxy-Filterrate `proxy_keep_frac = 0.5`:** 50 % der Kandidaten werden durch
+Proxy-Scoring ohne Training aussortiert. Der empirisch gemessene Spearman-Korrelations-
+koeffizient der Proxies (ρ ≈ 0.44, vgl. Abschnitt 4.5) rechtfertigt eine moderate
+Filterung. Eine aggressivere Rate (z. B. 25 % behalten) würde voraussetzen, dass
+die Proxies sehr zuverlässig die schlechtesten Architekturen identifizieren — was
+bei ρ ≈ 0.44 nicht gegeben ist.
 
 ---
 
@@ -809,23 +1113,6 @@ höhere Accuracy als Gen-0-Modelle.
 Das Setup verlief mit mehreren Problemen, die dokumentiert werden, weil sie
 reproduzierbare Lösungen erfordern und für zukünftige Remote-GPU-Experimente
 (z. B. spätere NAS-Ablationen) direkt verwendbar sind:
-
-**Problem 1 — VPN-Konfiguration:**
-EduVPN (ursprünglicher Versuch) routete den Traffic zur internen HAW-IP-Range
-172.18.14.x nicht korrekt. DNS-Auflösung von `gpu-v100s-03.ml.inf.haw-hamburg.de`
-scheiterte (`nodename nor servname provided`), direkte IP-Verbindung per SSH timeouted.
-Die korrekte VPN-Lösung ist **FortiClient VPN** (SSL-VPN, nicht OpenVPN/WireGuard)
-mit dem Profil `https://connect.informatik.haw-hamburg.de:6443/ml`. Dieses Profil
-setzt den internen HAW-DNS (172.19.2.12) und routet den 172.18.14.x-Bereich durch
-den Tunnel.
-
-**Problem 2 — GitHub-Authentifizierung (SSH-Key statt HTTPS):**
-`git clone https://github.com/mats-ad/Masterarbeit.git` scheiterte mit
-`remote: Invalid username or token`. GitHub unterstützt seit 2021 keine
-Passwort-Authentifizierung mehr für HTTPS-Git-Operationen. Lösung: Ed25519-SSH-Key
-auf dem Server generiert (`ssh-keygen -t ed25519`), Public Key zu GitHub hinzugefügt,
-dann `git clone git@github.com:mats-ad/Masterarbeit.git`. Der Key wurde nach
-Abschluss des Setups von GitHub gelöscht (temporäre Nutzung).
 
 **Problem 3 — Docker Shared Memory (shm):**
 DataLoader mit `num_workers=4` crashte im Container mit:

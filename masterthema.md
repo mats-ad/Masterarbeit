@@ -287,10 +287,10 @@ Kandidaten: HAM10000 (Dermatologie), MSTAR (SAR), RESISC45 (Remote Sensing).
    4.6 Evolutionärer Algorithmus
    4.6.1 Mutationen und Crossover-Operatoren
    4.7 Weight Inheritance und Kompatibilitätsprüfung
-   4.8 Evaluationsprotokoll
+   4.8 Datensatz und Preprocessing
+   4.9 Experimentelles Setup
+   4.10 Evaluationsprotokoll
 5. Evaluation und Ergebnisse
-   5.1 Datensatz und Preprocessing
-   5.2 Experimentelles Setup
    5.3 Baseline Ergebnisse
    5.4 NAS-Ergebnisse: Pareto Front
    5.5 Schwellenwertanalyse
