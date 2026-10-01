@@ -38,4 +38,9 @@ Thumbs.db
 
 # Keep results folder structure
 !results/.gitkeep
-!results/hauptprojekt/
+
+# Thesis writing & planning (local only)
+entwicklungsdokumentation.md
+masterthema.md
+Masterarbeit\ Expose\ Mats\ Adel.pdf
+results/hauptprojekt/
